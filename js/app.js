@@ -1,60 +1,45 @@
-import { persistAll } from './core/store.js';
-import { renderTabs, renderProducts, renderCart, initPOSPage } from './pages/pos-page.js';
-import { renderOrders, initOrdersPage } from './pages/orders-page.js';
-import { renderReports, initReportsPage } from './pages/reports-page.js';
-import { renderCategoryOptions, renderCategoryList, renderModuleSelect, renderModuleLibrary, renderProductModulesEditor, renderProductsTable, renderPendingMenuList, initProductsPage } from './pages/products-page.js';
-import { initSettingsPage } from './pages/settings-page.js';
-import { startPOSRealtimeListener, waitForAuthReady } from './modules/realtime-order-service.js';
-import { startGoogleAutoBackup } from './modules/google-backup-service.js';
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
 
-function safeRun(fn, name){
-  try { fn(); }
-  catch (err) {
-    console.error('Init error in ' + name + ':', err);
-    alert('ERROR in ' + name + ': ' + err.message);
+    "staff": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && root.child('staff').child(auth.uid).child('role').val() === 'admin'",
+        ".validate": "newData.hasChildren(['role','email'])"
+      }
+    },
+
+    "onlineOrders": {
+      ".indexOn": ["createdAt", "status", "customerPhone"],
+
+      "$orderId": {
+        ".read": "auth != null && ((root.child('staff').child(auth.uid).child('role').val() === 'staff') || (root.child('staff').child(auth.uid).child('role').val() === 'admin') || (data.child('customerUid').val() === auth.uid))",
+        ".write": "auth != null && ((!data.exists() && newData.child('customerUid').val() === auth.uid) || (data.exists() && ((root.child('staff').child(auth.uid).child('role').val() === 'staff') || (root.child('staff').child(auth.uid).child('role').val() === 'admin'))))",
+        ".validate": "newData.hasChildren(['orderNo','customerUid','customerName','customerPhone','orderType','items','subtotal','total','status','createdAt','updatedAt'])",
+
+        "orderNo": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40" },
+        "customerUid": { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "customerName": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40" },
+        "customerPhone": { ".validate": "newData.isString() && newData.val().length >= 6 && newData.val().length <= 20" },
+        "customerNote": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 200)" },
+        "orderType": { ".validate": "newData.val() === '線上點餐-內用' || newData.val() === '線上點餐-外帶'" },
+        "subtotal": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "total": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "status": { ".validate": "newData.val() === 'pending_confirm' || newData.val() === 'confirmed' || newData.val() === 'rejected'" },
+        "prepTimeMinutes": { ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 1 && newData.val() <= 240)" },
+        "estimatedReadyAt": { ".validate": "!newData.exists() || newData.isString()" },
+        "replyMessage": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 120)" },
+        "createdAt": { ".validate": "newData.isString()" },
+        "updatedAt": { ".validate": "newData.isString()" },
+        "items": {
+          ".validate": "newData.hasChildren()",
+          "$itemId": {
+            ".validate": "newData.hasChildren(['productId','name','basePrice','qty','extraPrice']) && newData.child('name').isString() && newData.child('basePrice').isNumber() && newData.child('qty').isNumber() && newData.child('qty').val() > 0 && newData.child('extraPrice').isNumber()"
+          }
+        }
+      }
+    }
   }
 }
-
-function setupNavigation(){
-  document.querySelectorAll('.nav-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
-      btn.classList.add('active');
-      document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
-      var target = document.getElementById(btn.dataset.view);
-      if(target) target.classList.add('active');
-    });
-  });
-}
-
-window.refreshAllViews = function(){
-  safeRun(renderTabs, 'renderTabs');
-  safeRun(renderProducts, 'renderProducts');
-  safeRun(renderCart, 'renderCart');
-  safeRun(renderOrders, 'renderOrders');
-  safeRun(renderReports, 'renderReports');
-  safeRun(renderCategoryOptions, 'renderCategoryOptions');
-  safeRun(renderCategoryList, 'renderCategoryList');
-  safeRun(renderModuleSelect, 'renderModuleSelect');
-  safeRun(renderModuleLibrary, 'renderModuleLibrary');
-  safeRun(renderProductModulesEditor, 'renderProductModulesEditor');
-  safeRun(renderProductsTable, 'renderProductsTable');
-  safeRun(renderPendingMenuList, 'renderPendingMenuList');
-  persistAll();
-};
-
-setupNavigation();
-safeRun(initPOSPage, 'initPOSPage');
-safeRun(initOrdersPage, 'initOrdersPage');
-safeRun(initReportsPage, 'initReportsPage');
-safeRun(initProductsPage, 'initProductsPage');
-safeRun(initSettingsPage, 'initSettingsPage');
-window.refreshAllViews();
-startGoogleAutoBackup();
-
-waitForAuthReady().then(function(user){
-  if(!user) return;
-  return startPOSRealtimeListener(function(){ window.refreshAllViews(); });
-}).catch(function(err){
-  console.error('Auto start realtime listener failed:', err);
-});
