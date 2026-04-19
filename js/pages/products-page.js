@@ -294,7 +294,25 @@ function moveProduct(productId, direction){
 export function renderProductsTable(){
   state.products.sort((a,b)=>a.sortOrder-b.sortOrder);
   const wrap=document.getElementById('productsTable'); wrap.innerHTML='';
-  if(!state.products.length) return wrap.innerHTML='<div class="muted">尚無商品</div>';
+
+  /* ★ 新增：在商品列表頂部加入「同步菜單到雲端」按鈕 */
+  const headerBar=document.createElement('div');
+  headerBar.style.cssText='grid-column:1/-1;display:flex;justify-content:flex-end;margin-bottom:4px;';
+  const syncBtn=document.createElement('button');
+  syncBtn.className='secondary-btn small-btn';
+  syncBtn.textContent='同步菜單到雲端';
+  syncBtn.onclick=async()=>{
+    try{
+      const {syncMenuToFirebase}=await import('../modules/realtime-order-service.js');
+      await syncMenuToFirebase();
+      alert('菜單已同步到雲端');
+    }catch(err){alert(err.message||'同步失敗');}
+  };
+  headerBar.appendChild(syncBtn);
+  wrap.appendChild(headerBar);
+
+  if(!state.products.length) return wrap.innerHTML+='<div class="muted">尚無商品</div>';
+
   const total=state.products.length;
   const expandedId=wrap.dataset.expandedProductId||'';
 
