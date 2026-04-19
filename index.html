@@ -133,6 +133,7 @@
           <button id="applyReportRangeBtn" class="secondary-btn">套用日期</button>
           <button id="saveReportSnapshotBtn" class="secondary-btn">儲存報表</button>
           <button id="exportTodayBtn" class="secondary-btn">匯出今日 CSV</button>
+          <button id="printReportBtn" class="primary-btn">列印報表</button>
         </div>
       </header>
       <div id="reportCards" class="stats-grid"></div>
@@ -460,8 +461,28 @@
       <button id="cancelModuleManageBtn" class="secondary-btn">取消</button>
     </div>
   </div>
+</div><!-- ===== 報表列印選項 Modal ===== -->
+<div id="reportPrintModal" class="modal hidden">
+  <div class="modal-backdrop" data-close="report-print"></div>
+  <div class="modal-dialog" style="max-width:460px">
+    <div class="row between wrap">
+      <h2>選擇要列印的報表</h2>
+      <button id="closeReportPrintModal" class="ghost-btn">✕</button>
+    </div>
+    <div class="stack" style="margin-top:12px">
+      <label class="inline-check"><input type="checkbox" id="rp_summary" checked> 營業額摘要（今日 / 近7日 / 近30日）</label>
+      <label class="inline-check"><input type="checkbox" id="rp_topProducts" checked> 熱銷商品 TOP 10</label>
+      <label class="inline-check"><input type="checkbox" id="rp_paymentStats" checked> 付款方式統計</label>
+      <label class="inline-check"><input type="checkbox" id="rp_productAnalysis" checked> 商品販賣分析</label>
+      <label class="inline-check"><input type="checkbox" id="rp_hourAnalysis" checked> 時段販售狀況</label>
+      <label class="inline-check"><input type="checkbox" id="rp_sessionList" checked> 開始 / 結束紀錄</label>
+    </div>
+    <div class="row gap wrap" style="margin-top:16px">
+      <button id="reportPrintConfirmBtn" class="primary-btn">確認列印</button>
+      <button id="reportPrintCancelBtn" class="secondary-btn">取消</button>
+    </div>
+  </div>
 </div>
-
 <!-- ===== 列印欄位選擇 Modal ===== -->
 <div id="printFieldsModal" class="modal hidden">
   <div class="modal-backdrop" data-close="print-fields"></div>
