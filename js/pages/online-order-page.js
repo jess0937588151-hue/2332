@@ -1,5 +1,5 @@
 /* 中文備註：線上點餐頁邏輯，顧客送單後會等待 POS 確認，確認後才完成訂購。 */
-/* 功能：雲端菜單自動同步（每30秒）、顧客資料記憶、模組選擇、購物車、送單。 */
+/* 功能：雲端菜單自動同步（每30秒）420列、顧客資料記憶、模組選擇、購物車、送單。 */
 import { state } from '../core/store.js';
 import { escapeHtml, id, money } from '../core/utils.js';
 import { getRealtimeConfig, pushOnlineOrder, watchCustomerOrder, loadMenuFromFirebase } from '../modules/realtime-order-service.js';
@@ -414,10 +414,10 @@ async function init(){
   /* 首次載入：從 Firebase 取得最新菜單 */
   await refreshMenuFromCloud();
 
-  /* 每 30 秒自動從雲端更新菜單（POS 同步後顧客端自動生效） */
+  /* 每 45 秒自動從雲端更新菜單（POS 同步後顧客端自動生效） */
   setInterval(async ()=>{
     try{ await refreshMenuFromCloud(); }catch(e){}
-  }, 30000);
+  }, 45000);
 
   renderCategoryTabs();
   renderProducts();
