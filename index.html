@@ -43,9 +43,7 @@
           <input id="tableNo" placeholder="桌號 / 取餐號 / 訂單號">
         </div>
       </header>
-
       <div class="content-grid">
-        <!-- 商品區 -->
         <section class="card">
           <div class="toolbar stack">
             <input id="productSearch" placeholder="搜尋商品">
@@ -53,15 +51,12 @@
           </div>
           <div id="productGrid" class="product-grid"></div>
         </section>
-
-        <!-- 購物車區 -->
         <section class="card cart-panel">
           <div class="row between wrap">
             <h2>購物車</h2>
             <button id="clearCartBtn" class="danger-btn">清空</button>
           </div>
           <div id="cartList" class="cart-list empty">尚未加入商品</div>
-
           <div class="summary">
             <div class="row between"><span>小計</span><strong id="subtotalText">$0</strong></div>
             <div class="stack">
@@ -173,7 +168,6 @@
           <button id="saveAllBtn" class="secondary-btn">儲存設定</button>
         </div>
       </header>
-
       <div class="products-layout">
         <section class="card stack">
           <div class="panel-section">
@@ -184,7 +178,6 @@
             </div>
             <div id="categoryList" class="stack" style="margin-top:12px"></div>
           </div>
-
           <div class="panel-section">
             <h2>模組管理</h2>
             <div class="row gap wrap" style="margin-top:12px">
@@ -194,7 +187,6 @@
             <div id="moduleLibraryList" class="stack" style="margin-top:12px"></div>
           </div>
         </section>
-
         <section class="card stack">
           <section class="panel-section">
             <h2>商品編輯</h2>
@@ -258,7 +250,6 @@
               </div>
             </form>
           </section>
-
           <section class="panel-section">
             <div class="row between wrap">
               <h2>待處理菜單</h2>
@@ -266,7 +257,6 @@
             </div>
             <div id="pendingMenuList" class="products-table" style="margin-top:12px"></div>
           </section>
-
           <section class="panel-section">
             <div class="row between wrap">
               <h2>商品列表</h2>
@@ -295,7 +285,6 @@
           <button id="seedDemoBtn" class="secondary-btn">重建預設資料</button>
           <label class="inline-check"><input id="showProductImagesToggle" type="checkbox"> 點餐頁顯示商品圖片</label>
         </section>
-
         <!-- Google Drive 備份 / 還原 -->
         <section class="card settings-list">
           <h2>Google Drive 備份 / 還原</h2>
@@ -321,7 +310,6 @@
           <div id="googleBackupStatusBox" class="muted"></div>
           <div class="muted">此功能改為 Google OAuth + Drive API 直連，不使用 Apps Script，也不支援手動輸入 Google 帳號密碼。</div>
         </section>
-
         <!-- 即時接單設定 -->
         <section class="card settings-list">
           <h2>即時接單設定</h2>
@@ -341,7 +329,6 @@
           <label class="inline-check"><input id="onlineIncomingSoundEnabled" type="checkbox"> 線上新單播放提醒聲</label>
           <div class="row gap wrap">
             <button id="saveRealtimeOrderSettingsBtn" class="primary-btn">儲存即時接單設定</button>
-            <!-- ★ 新增：同步菜單到雲端按鈕 -->
             <button id="syncMenuBtn" class="secondary-btn">同步菜單到雲端</button>
             <button id="posGoogleLoginBtn" class="secondary-btn">POS Google 登入</button>
             <button id="posGoogleLogoutBtn" class="secondary-btn">POS Google 登出</button>
@@ -350,7 +337,6 @@
           <div id="realtimeOrderStatusBox" class="muted"></div>
           <div class="muted">外部顧客頁與 POS 都要填相同 Firebase 設定，顧客送單後 POS 會即時收到，店家確認後顧客才完成訂購。</div>
         </section>
-
         <!-- 列印設定 -->
         <section class="card settings-list">
           <h2>列印設定</h2>
@@ -378,11 +364,11 @@
           <div class="row gap wrap">
             <button id="savePrintSettingsBtn" class="primary-btn">儲存列印設定</button>
             <button id="previewReceiptPrintBtn" class="secondary-btn">預覽顧客單</button>
+            <button id="previewKitchenPrintBtn" class="secondary-btn">預覽廚房單</button>
             <button id="previewLabelPrintBtn" class="secondary-btn">預覽標籤</button>
           </div>
           <div class="muted">此版採用瀏覽器列印方式，可搭配已安裝驅動的出單機與標籤機使用。</div>
         </section>
-
         <!-- 這版修正 -->
         <section class="card settings-list">
           <h2>這版修正</h2>
@@ -395,13 +381,12 @@
             <li>點餐頁可切換是否顯示商品圖片</li>
           </ul>
         </section>
-
-        <!-- ★ 新增：自訂進單提示音設定（設定頁最底部） -->
+        <!-- 自訂進單提示音 -->
         <section class="card settings-list">
           <h2>自訂進單提示音</h2>
-          <div class="muted">上傳 .mp3 或 .wav 音效檔（500KB 以內），線上新單進來時將播放此音效取代預設提示音。</div>
+          <div class="muted">上傳音效檔（500KB 以內，支援 .mp3 .wav .m4a），線上新單進來時將播放此音效取代預設提示音。</div>
           <div id="customSoundStatusBox" class="muted" style="margin-top:8px">目前音效：預設提示音</div>
-          <input id="customSoundFileInput" type="file" accept="/" hidden>
+          <input id="customSoundFileInput" type="file" accept="audio/*" hidden>
           <div class="row gap wrap" style="margin-top:12px">
             <button id="uploadCustomSoundBtn" class="secondary-btn">上傳自訂音效</button>
             <button id="previewCustomSoundBtn" class="secondary-btn">試聽目前音效</button>
@@ -409,7 +394,6 @@
           </div>
           <div class="muted" style="margin-top:8px">提醒：若未上傳自訂音效，進單時將播放預設的 3 聲電子提示音。音效檔案儲存在瀏覽器本機，更換裝置需重新上傳。</div>
         </section>
-
       </div>
     </section>
   </main>
@@ -475,6 +459,50 @@
       <button id="saveModuleManageBtn" class="primary-btn">儲存</button>
       <button id="cancelModuleManageBtn" class="secondary-btn">取消</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== 列印欄位選擇 Modal ===== -->
+<div id="printFieldsModal" class="modal hidden">
+  <div class="modal-backdrop" data-close="print-fields"></div>
+  <div class="modal-dialog" style="max-width:420px">
+    <div class="row between wrap">
+      <h2 id="printFieldsTitle">選擇列印欄位</h2>
+      <button id="closePrintFieldsModal" class="ghost-btn">✕</button>
+    </div>
+    <div class="stack" style="margin-top:12px">
+      <label class="inline-check"><input type="checkbox" id="pf_storeName" checked> 店名</label>
+      <label class="inline-check"><input type="checkbox" id="pf_storePhone" checked> 電話</label>
+      <label class="inline-check"><input type="checkbox" id="pf_storeAddress" checked> 地址</label>
+      <label class="inline-check"><input type="checkbox" id="pf_orderNo" checked> 單號</label>
+      <label class="inline-check"><input type="checkbox" id="pf_createdAt" checked> 時間</label>
+      <label class="inline-check"><input type="checkbox" id="pf_orderType" checked> 訂單類型 / 桌號</label>
+      <label class="inline-check"><input type="checkbox" id="pf_paymentMethod" checked> 付款方式</label>
+      <label class="inline-check"><input type="checkbox" id="pf_itemSelections" checked> 品項模組選項</label>
+      <label class="inline-check"><input type="checkbox" id="pf_itemNote" checked> 品項備註</label>
+      <label class="inline-check"><input type="checkbox" id="pf_itemPrice" checked> 品項價格 / 小計</label>
+      <label class="inline-check"><input type="checkbox" id="pf_totalSection" checked> 合計 / 折扣區塊</label>
+      <label class="inline-check"><input type="checkbox" id="pf_footer" checked> 收據備註（頁尾）</label>
+    </div>
+    <div class="row gap wrap" style="margin-top:16px">
+      <button id="printFieldsConfirmBtn" class="primary-btn">確認預覽</button>
+      <button id="printFieldsCancelBtn" class="secondary-btn">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 列印預覽浮動視窗 ===== -->
+<div id="printPreviewModal" class="modal hidden">
+  <div class="modal-backdrop" data-close="print-preview"></div>
+  <div class="modal-dialog wide" style="max-width:480px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
+    <div class="row between wrap" style="padding:16px 20px;border-bottom:1px solid var(--line);">
+      <h2 id="printPreviewTitle">列印預覽</h2>
+      <div class="row gap">
+        <button id="printPreviewPrintBtn" class="primary-btn small-btn">列印</button>
+        <button id="closePrintPreviewModal" class="ghost-btn">✕</button>
+      </div>
+    </div>
+    <iframe id="printPreviewFrame" style="flex:1;width:100%;min-height:500px;border:none;background:#fff;"></iframe>
   </div>
 </div>
 
