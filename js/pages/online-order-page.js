@@ -1,7 +1,7 @@
 /* 中文備註：線上點餐頁邏輯，顧客送單後會等待 POS 確認，確認後才完成訂購。 */
 import { state } from '../core/store.js';
 import { escapeHtml, id, money } from '../core/utils.js';
-import { getRealtimeConfig, pushOnlineOrder, watchCustomerOrder } from '../modules/realtime-order-service.js';
+import { getRealtimeConfig, pushOnlineOrder, watchCustomerOrder, loadMenuFromFirebase } from '../modules/realtime-order-service.js';
 
 const onlineState = {
   selectedCategory: '全部',
@@ -287,6 +287,26 @@ function buildConfirmedMessage(remote, orderId){
   return parts.join('，');
 }
 
+/* === 顧客資料記憶功能 === */
+function loadCustomerInfo(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('onlineCustomerInfo') || '{}');
+    if(saved.name) document.getElementById('onlineCustomerName').value = saved.name;
+    if(saved.phone) document.getElementById('onlineCustomerPhone').value = saved.phone;
+    if(saved.orderType) document.getElementById('onlineOrderType').value = saved.orderType;
+  }catch(e){}
+}
+
+function saveCustomerInfo(){
+  try{
+    localStorage.setItem('onlineCustomerInfo', JSON.stringify({
+      name: document.getElementById('onlineCustomerName').value.trim(),
+      phone: document.getElementById('onlineCustomerPhone').value.trim(),
+      orderType: document.getElementById('onlineOrderType').value
+    }));
+  }catch(e){}
+}
+
 async function submitOnlineOrder(){
   if(!onlineState.cart.length) return alert('請先加入商品');
   const name = document.getElementById('onlineCustomerName').value.trim();
@@ -339,29 +359,19 @@ async function submitOnlineOrder(){
   }
 }
 
-/* === 顧客資料記憶功能 === */
-function loadCustomerInfo(){
-  try{
-    const saved = JSON.parse(localStorage.getItem('onlineCustomerInfo') || '{}');
-    if(saved.name) document.getElementById('onlineCustomerName').value = saved.name;
-    if(saved.phone) document.getElementById('onlineCustomerPhone').value = saved.phone;
-    if(saved.orderType) document.getElementById('onlineOrderType').value = saved.orderType;
-  }catch(e){}
-}
-
-function saveCustomerInfo(){
-  try{
-    localStorage.setItem('onlineCustomerInfo', JSON.stringify({
-      name: document.getElementById('onlineCustomerName').value.trim(),
-      phone: document.getElementById('onlineCustomerPhone').value.trim(),
-      orderType: document.getElementById('onlineOrderType').value
-    }));
-  }catch(e){}
-}
-
-function init(){
+async function init(){
   document.getElementById('onlineStoreName').textContent = getStoreName();
   document.getElementById('onlineStoreMeta').textContent = getStoreMeta();
+
+  try{
+    const menu = await loadMenuFromFirebase();
+    if(menu){
+      if(Array.isArray(menu.categories)) state.categories = menu.categories;
+      if(Array.isArray(menu.modules)) state.modules = menu.modules;
+      if(Array.isArray(menu.products)) state.products = menu.products;
+    }
+  }catch(e){ console.error('載入雲端菜單失敗，使用本機資料', e); }
+
   renderCategoryTabs();
   renderProducts();
   renderCart();
