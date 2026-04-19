@@ -1,4 +1,5 @@
 /* 中文備註：Firebase 即時接單服務。顧客匿名送單，POS 端使用 Google 登入接單，並搭配安全規則。 */
+/* 新增功能：切回頁面自動重連 Firebase、加強進單提示音（更大聲、重複 3 輪） */
 import { state, persistAll } from '../core/store.js';
 
 const FIREBASE_BASE = 'https://www.gstatic.com/firebasejs/10.12.2';
@@ -22,6 +23,8 @@ let googleProvider = null;
 let initialized = false;
 let posListenerRef = null;
 let posListenerCallback = null;
+/* 記錄最後一次的 onRefresh callback，切回頁面時重連用 */
+let lastOnRefreshCallback = null;
 
 function ensureRealtimeConfig(){
   if(!state.settings) state.settings = {};
@@ -92,6 +95,7 @@ async function getRef(path){
   return dbApi.ref(dbInstance, path);
 }
 
+/* === 進單提示音：更大聲、播放 3 輪、每輪 3 個音、總長約 2.5 秒 === */
 function beep(){
   try{
     const cfg = ensureRealtimeConfig();
@@ -99,22 +103,34 @@ function beep(){
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if(!AudioCtx) return;
     const ctx = new AudioCtx();
-    const notes = [880, 988, 880];
-    notes.forEach((freq, index)=>{
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.value = 0.05;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      const startAt = ctx.currentTime + index * 0.22;
-      osc.start(startAt);
-      osc.stop(startAt + 0.16);
-    });
-    setTimeout(()=> ctx.close(), 900);
+    /* 3 輪提示音，每輪間隔 0.8 秒 */
+    const rounds = 3;
+    const notesPerRound = [880, 1047, 880]; /* 高音 La、高音 Do、高音 La */
+    const noteLength = 0.15;    /* 每個音的長度（秒） */
+    const noteGap = 0.18;       /* 音與音之間的間隔（秒） */
+    const roundGap = 0.6;       /* 每輪之間的間隔（秒） */
+    const volume = 0.35;        /* 音量（0~1，原本 0.05 太小聲） */
+
+    for(let r = 0; r < rounds; r++){
+      const roundStart = r * (notesPerRound.length * (noteLength + noteGap) + roundGap);
+      notesPerRound.forEach((freq, i)=>{
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square'; /* square 波形比 sine 更尖銳、更容易聽到 */
+        osc.frequency.value = freq;
+        gain.gain.value = volume;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const startAt = ctx.currentTime + roundStart + i * (noteLength + noteGap);
+        osc.start(startAt);
+        osc.stop(startAt + noteLength);
+      });
+    }
+    /* 全部播完後關閉 AudioContext */
+    const totalDuration = rounds * (notesPerRound.length * (noteLength + noteGap) + roundGap);
+    setTimeout(()=> ctx.close(), (totalDuration + 1) * 1000);
   }catch(err){
-    console.error(err);
+    console.error('提示音播放失敗：', err);
   }
 }
 
@@ -206,6 +222,9 @@ export async function startPOSRealtimeListener(onRefresh){
   if(!cfg.enabled) return;
   await loadFirebaseModules();
 
+  /* 記錄 callback，切回頁面時重連用 */
+  lastOnRefreshCallback = onRefresh;
+
   const user = authInstance.currentUser || await waitForAuthReady();
   if(!user){
     updateSyncStatus('POS 尚未登入 Google');
@@ -214,6 +233,7 @@ export async function startPOSRealtimeListener(onRefresh){
 
   await verifyPOSAccess();
   const ref = await getRef('onlineOrders');
+  /* 若之前有監聽器，先移除避免重複 */
   if(posListenerRef && posListenerCallback){
     dbApi.off(posListenerRef, 'value', posListenerCallback);
   }
@@ -229,12 +249,14 @@ export async function startPOSRealtimeListener(onRefresh){
 
     state.onlineIncomingOrders = incoming;
 
+    /* 檢查是否有新的待確認訂單 */
     incoming.forEach(order => {
       if(order.status === 'pending_confirm' && !seen.has(order.id)){
         seen.add(order.id);
         cfg.lastOrderAt = new Date().toISOString();
         cfg.lastSyncStatus = `收到新訂單：${order.customerName || order.orderNo || order.id}`;
         sessionStorage.setItem('pos_seen_online_orders', JSON.stringify([...seen]));
+        /* 播放進單提示音 */
         beep();
       }
     });
@@ -263,6 +285,20 @@ export async function startPOSRealtimeListener(onRefresh){
   if(typeof onRefresh === 'function') onRefresh();
   if(typeof window.refreshRealtimeOrderPanel === 'function') window.refreshRealtimeOrderPanel();
 }
+
+/* === 頁面切回前景時自動重新連線 Firebase 監聽器 === */
+/* iPad Safari 在背景分頁會暫停 WebSocket，切回時需要重建監聽 */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible'){
+    const cfg = ensureRealtimeConfig();
+    if(!cfg.enabled) return;
+    if(!authInstance?.currentUser) return;
+    /* 重新啟動監聽器 */
+    startPOSRealtimeListener(lastOnRefreshCallback || (()=> {
+      if(typeof window.refreshAllViews === 'function') window.refreshAllViews();
+    })).catch(err => console.error('切回頁面重連失敗：', err));
+  }
+});
 
 export async function confirmOnlineOrder(orderId, prepTimeMinutes = 0, replyMessage = ''){
   const ref = await getRef(`onlineOrders/${orderId}`);
@@ -338,6 +374,7 @@ export function buildRealtimeOrderForPOS(remote){
   };
 }
 
+/* === 同步菜單到 Firebase（POS 端呼叫） === */
 export async function syncMenuToFirebase(){
   await loadFirebaseModules();
   const user = authInstance.currentUser;
@@ -351,6 +388,7 @@ export async function syncMenuToFirebase(){
   });
 }
 
+/* === 從 Firebase 載入菜單（線上點餐端呼叫） === */
 export async function loadMenuFromFirebase(){
   await loadFirebaseModules();
   const menuRef = await getRef('menu');
