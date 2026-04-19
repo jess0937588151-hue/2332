@@ -1,15 +1,18 @@
 /* 中文備註：線上點餐頁邏輯，顧客送單後會等待 POS 確認，確認後才完成訂購。 */
+/* 功能：雲端菜單自動同步（每30秒）、顧客資料記憶、模組選擇、購物車、送單。 */
 import { state } from '../core/store.js';
 import { escapeHtml, id, money } from '../core/utils.js';
 import { getRealtimeConfig, pushOnlineOrder, watchCustomerOrder, loadMenuFromFirebase } from '../modules/realtime-order-service.js';
 
+/* === 線上點餐頁面的狀態 === */
 const onlineState = {
-  selectedCategory: '全部',
-  cart: [],
-  currentSelections: {},
-  configTarget: null
+  selectedCategory: '全部',  /* 目前選中的分類 */
+  cart: [],                   /* 購物車內容 */
+  currentSelections: {},      /* 模組選項的目前選擇 */
+  configTarget: null          /* 正在設定的商品（新增或編輯） */
 };
 
+/* === 底部浮動提示訊息 === */
 function showOnlineToast(message){
   let toast = document.getElementById('onlineToast');
   if(!toast){
@@ -24,6 +27,7 @@ function showOnlineToast(message){
   showOnlineToast._timer = setTimeout(()=> toast.classList.remove('show'), 1600);
 }
 
+/* === 取得店家名稱與副標題 === */
 function getStoreName(){
   return state.settings?.realtimeOrder?.onlineStoreTitle || state.settings?.printConfig?.storeName || '立即點餐';
 }
@@ -32,6 +36,7 @@ function getStoreMeta(){
   return state.settings?.realtimeOrder?.onlineStoreSubtitle || '內用 / 外帶皆可';
 }
 
+/* === 建立模組選項的初始狀態（單選為 null，多選為空陣列） === */
 function createConfigState(product){
   const selections = {};
   for(const att of product.modules || []){
@@ -41,6 +46,7 @@ function createConfigState(product){
   return selections;
 }
 
+/* === 將目前的模組選擇轉成扁平陣列（用於儲存到購物車） === */
 function flattenSelections(product){
   const rows = [];
   for(const att of product.modules || []){
@@ -60,12 +66,14 @@ function flattenSelections(product){
   return rows;
 }
 
+/* === 比較兩組選項是否相同（用於合併購物車相同品項） === */
 function sameSelections(a=[], b=[]){
   if(a.length !== b.length) return false;
   const format = rows => rows.map(x=>`${x.moduleId}:${x.optionId}`).sort().join('|');
   return format(a) === format(b);
 }
 
+/* === 合併或新增購物車品項（相同商品+相同選項+相同備註 → 數量合併） === */
 function mergeOrPushCartItem(payload){
   const existing = onlineState.cart.find(item =>
     item.productId === payload.productId &&
@@ -78,6 +86,7 @@ function mergeOrPushCartItem(payload){
   else onlineState.cart.push(payload);
 }
 
+/* === 渲染分類標籤列 === */
 function renderCategoryTabs(){
   const wrap = document.getElementById('onlineCategoryTabs');
   const categories = ['全部', ...state.categories.filter(c => c && c !== '全部')];
@@ -91,6 +100,7 @@ function renderCategoryTabs(){
   });
 }
 
+/* === 渲染商品列表（依分類與搜尋關鍵字過濾） === */
 function renderProducts(){
   const keyword = document.getElementById('onlineSearchInput').value.trim();
   const grid = document.getElementById('onlineProductGrid');
@@ -123,6 +133,7 @@ function renderProducts(){
   });
 }
 
+/* === 更新商品設定視窗中的小計金額預覽 === */
 function updateItemPricePreview(product){
   let add = 0;
   const selections = flattenSelections(product);
@@ -131,6 +142,7 @@ function updateItemPricePreview(product){
   document.getElementById('onlineItemPricePreview').textContent = '小計：' + money((Number(product.price||0) + add) * qty);
 }
 
+/* === 渲染商品模組設定（灑粉、辣度等選項按鈕） === */
 function renderProductConfig(product){
   document.getElementById('onlineModalTitle').textContent = product.name + ' - 設定';
   const imageWrap = document.getElementById('onlineModalImageWrap');
@@ -165,10 +177,12 @@ function renderProductConfig(product){
       btn.innerHTML = `<span>${escapeHtml(opt.name)}</span><strong>${opt.price ? '+' + money(opt.price) : money(0)}</strong>`;
       btn.onclick = ()=>{
         if(mod.selection === 'multi'){
+          /* 多選：切換選取狀態 */
           const arr = onlineState.currentSelections[mod.id] || [];
           if(arr.includes(opt.id)) onlineState.currentSelections[mod.id] = arr.filter(x=>x!==opt.id);
           else onlineState.currentSelections[mod.id] = [...arr, opt.id];
         } else {
+          /* 單選：再點一次取消 */
           onlineState.currentSelections[mod.id] = onlineState.currentSelections[mod.id] === opt.id ? null : opt.id;
         }
         renderProductConfig(product);
@@ -180,6 +194,7 @@ function renderProductConfig(product){
   updateItemPricePreview(product);
 }
 
+/* === 點擊商品「加入購物車」→ 開啟模組設定視窗（新增模式） === */
 function openProductConfigForNew(productId){
   const product = state.products.find(p=>p.id===productId && p.enabled!==false);
   if(!product) return;
@@ -191,6 +206,7 @@ function openProductConfigForNew(productId){
   document.getElementById('onlineProductModal').classList.remove('hidden');
 }
 
+/* === 購物車中點「編輯」→ 開啟模組設定視窗（編輯模式） === */
 function openProductConfigForEdit(rowId){
   const item = onlineState.cart.find(x=>x.rowId===rowId);
   if(!item) return;
@@ -198,6 +214,7 @@ function openProductConfigForEdit(rowId){
   if(!product) return;
   onlineState.configTarget = { mode:'edit', rowId, productId:item.productId };
   onlineState.currentSelections = createConfigState(product);
+  /* 還原先前選擇的模組選項 */
   (item.selections || []).forEach(sel=>{
     if(Array.isArray(onlineState.currentSelections[sel.moduleId])) onlineState.currentSelections[sel.moduleId].push(sel.optionId);
     else onlineState.currentSelections[sel.moduleId] = sel.optionId;
@@ -208,12 +225,14 @@ function openProductConfigForEdit(rowId){
   document.getElementById('onlineProductModal').classList.remove('hidden');
 }
 
+/* === 關閉模組設定視窗 === */
 function closeProductConfig(){
   document.getElementById('onlineProductModal').classList.add('hidden');
   onlineState.configTarget = null;
   onlineState.currentSelections = {};
 }
 
+/* === 渲染購物車清單 === */
 function renderCart(){
   const list = document.getElementById('onlineCartList');
   list.innerHTML = '';
@@ -248,6 +267,7 @@ function renderCart(){
       list.appendChild(row);
     });
   }
+  /* 更新小計與總數量 */
   const subtotal = onlineState.cart.reduce((s,x)=>s + (x.basePrice + x.extraPrice) * x.qty, 0);
   const totalQty = onlineState.cart.reduce((s,x)=>s + x.qty, 0);
   document.getElementById('onlineSubtotalText').textContent = money(subtotal);
@@ -255,9 +275,11 @@ function renderCart(){
   document.getElementById('openCartBtn').innerHTML = `購物車 <span id="cartQtyBadge">${totalQty}</span>`;
 }
 
+/* === 購物車抽屜開關 === */
 function openCartDrawer(){ document.getElementById('onlineCartDrawer').classList.remove('hidden'); }
 function closeCartDrawer(){ document.getElementById('onlineCartDrawer').classList.add('hidden'); }
 
+/* === 訂單狀態遮罩（等待確認 / 已確認 / 已拒絕） === */
 function openStatusOverlay(title, text, closable = false){
   document.getElementById('onlineOrderStatusTitle').textContent = title;
   document.getElementById('onlineOrderStatusText').textContent = text;
@@ -266,6 +288,7 @@ function openStatusOverlay(title, text, closable = false){
 }
 function closeStatusOverlay(){ document.getElementById('onlineOrderStatusOverlay').classList.add('hidden'); }
 
+/* === 格式化日期時間文字 === */
 function formatDateTimeText(isoString){
   if(!isoString) return '';
   const date = new Date(isoString);
@@ -279,6 +302,7 @@ function formatDateTimeText(isoString){
   });
 }
 
+/* === 組合店家確認訂單後的回覆訊息 === */
 function buildConfirmedMessage(remote, orderId){
   const parts = [`訂單編號：${remote.orderNo || orderId}`];
   if(remote.prepTimeMinutes) parts.push(`預估備餐 ${remote.prepTimeMinutes} 分鐘`);
@@ -287,7 +311,7 @@ function buildConfirmedMessage(remote, orderId){
   return parts.join('，');
 }
 
-/* === 顧客資料記憶功能 === */
+/* === 顧客資料記憶功能（使用 localStorage 儲存姓名、電話、訂單類型） === */
 function loadCustomerInfo(){
   try{
     const saved = JSON.parse(localStorage.getItem('onlineCustomerInfo') || '{}');
@@ -307,6 +331,7 @@ function saveCustomerInfo(){
   }catch(e){}
 }
 
+/* === 送出線上訂單到 Firebase === */
 async function submitOnlineOrder(){
   if(!onlineState.cart.length) return alert('請先加入商品');
   const name = document.getElementById('onlineCustomerName').value.trim();
@@ -316,6 +341,7 @@ async function submitOnlineOrder(){
   if(!name) return alert('請輸入姓名');
   if(!phone) return alert('請輸入電話');
 
+  /* 送單時也儲存顧客資料 */
   saveCustomerInfo();
 
   const realtimeCfg = getRealtimeConfig();
@@ -336,9 +362,11 @@ async function submitOnlineOrder(){
   try{
     openStatusOverlay('等待店家確認訂單', '送出後請稍候，店家確認後才算完成訂購。');
     const orderId = await pushOnlineOrder(payload);
+    /* 監聽此筆訂單的狀態變化（確認 / 拒絕） */
     const stopWatch = await watchCustomerOrder(orderId, (remote)=>{
       if(!remote) return;
       if(remote.status === 'confirmed'){
+        /* 店家已確認 → 清空購物車，顯示確認訊息 */
         onlineState.cart = [];
         renderCart();
         closeCartDrawer();
@@ -346,9 +374,11 @@ async function submitOnlineOrder(){
         openStatusOverlay('店家已確認訂單', buildConfirmedMessage(remote, orderId), true);
         stopWatch();
       }else if(remote.status === 'rejected'){
+        /* 店家已拒絕 → 顯示拒絕訊息 */
         openStatusOverlay('店家已拒絕訂單', remote.replyMessage || '很抱歉，店家目前無法接單，請稍後再試。', true);
         stopWatch();
       }else{
+        /* 仍在等待中 */
         const pendingText = remote.replyMessage || '訂單已送出，請稍候店家確認。';
         openStatusOverlay('等待店家確認訂單', pendingText);
       }
@@ -359,44 +389,70 @@ async function submitOnlineOrder(){
   }
 }
 
-async function init(){
-  document.getElementById('onlineStoreName').textContent = getStoreName();
-  document.getElementById('onlineStoreMeta').textContent = getStoreMeta();
-
+/* === 從 Firebase 雲端拉取最新菜單並更新頁面 === */
+async function refreshMenuFromCloud(){
   try{
     const menu = await loadMenuFromFirebase();
     if(menu){
       if(Array.isArray(menu.categories)) state.categories = menu.categories;
       if(Array.isArray(menu.modules)) state.modules = menu.modules;
       if(Array.isArray(menu.products)) state.products = menu.products;
+      /* 重新渲染分類與商品列表 */
+      renderCategoryTabs();
+      renderProducts();
     }
-  }catch(e){ console.error('載入雲端菜單失敗，使用本機資料', e); }
+  }catch(e){
+    console.error('載入雲端菜單失敗，使用本機資料', e);
+  }
+}
+
+/* === 頁面初始化 === */
+async function init(){
+  document.getElementById('onlineStoreName').textContent = getStoreName();
+  document.getElementById('onlineStoreMeta').textContent = getStoreMeta();
+
+  /* 首次載入：從 Firebase 取得最新菜單 */
+  await refreshMenuFromCloud();
+
+  /* 每 30 秒自動從雲端更新菜單（POS 同步後顧客端自動生效） */
+  setInterval(async ()=>{
+    try{ await refreshMenuFromCloud(); }catch(e){}
+  }, 30000);
 
   renderCategoryTabs();
   renderProducts();
   renderCart();
+  /* 自動帶入上次填寫的顧客資料 */
   loadCustomerInfo();
 
+  /* 顧客輸入姓名、電話、訂單類型時自動儲存 */
   document.getElementById('onlineCustomerName').addEventListener('input', saveCustomerInfo);
   document.getElementById('onlineCustomerPhone').addEventListener('input', saveCustomerInfo);
   document.getElementById('onlineOrderType').addEventListener('change', saveCustomerInfo);
 
+  /* 商品搜尋 */
   document.getElementById('onlineSearchInput').addEventListener('input', renderProducts);
+  /* 數量變更時更新小計預覽 */
   document.getElementById('onlineItemQtyInput').addEventListener('input', ()=>{
     const p = state.products.find(x=>x.id===onlineState.configTarget?.productId);
     if(p) updateItemPricePreview(p);
   });
 
+  /* 購物車抽屜按鈕 */
   document.getElementById('openCartBtn').onclick = openCartDrawer;
   document.getElementById('closeCartBtn').onclick = closeCartDrawer;
   document.querySelector('.online-drawer-backdrop').onclick = closeCartDrawer;
+
+  /* 模組設定視窗按鈕 */
   document.getElementById('closeOnlineProductModal').onclick = closeProductConfig;
   document.getElementById('cancelOnlineProductBtn').onclick = closeProductConfig;
   document.querySelector('#onlineProductModal .modal-backdrop').onclick = closeProductConfig;
 
+  /* 模組設定視窗「加入購物車」按鈕 */
   document.getElementById('saveOnlineProductBtn').onclick = ()=>{
     const product = state.products.find(p=>p.id===onlineState.configTarget?.productId);
     if(!product) return closeProductConfig();
+    /* 檢查必選模組是否已選擇 */
     for(const att of product.modules || []){
       const mod = state.modules.find(m=>m.id===att.moduleId);
       if(!mod) continue;
@@ -418,10 +474,12 @@ async function init(){
       extraPrice: extra
     };
     if(onlineState.configTarget?.mode === 'edit'){
+      /* 編輯模式：更新購物車中的該筆品項 */
       const idx = onlineState.cart.findIndex(x=>x.rowId===onlineState.configTarget.rowId);
       if(idx >= 0) onlineState.cart[idx] = payload;
       showOnlineToast('已更新購物車商品');
     }else{
+      /* 新增模式：合併或加入購物車 */
       mergeOrPushCartItem(payload);
       showOnlineToast('已加入購物車');
     }
@@ -429,7 +487,9 @@ async function init(){
     renderCart();
   };
 
+  /* 送出訂單按鈕 */
   document.getElementById('submitOnlineOrderBtn').onclick = submitOnlineOrder;
+  /* 訂單狀態遮罩關閉按鈕 */
   document.getElementById('closeOnlineStatusBtn').onclick = closeStatusOverlay;
 }
 init();
