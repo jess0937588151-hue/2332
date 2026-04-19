@@ -1,4 +1,3 @@
-/* 中文備註：主程式初始化檔。此版已移除 OCR 頁初始化，只保留點餐、訂單、報表、商品管理、設定。 */
 import { persistAll } from './core/store.js';
 import { renderTabs, renderProducts, renderCart, initPOSPage } from './pages/pos-page.js';
 import { renderOrders, initOrdersPage } from './pages/orders-page.js';
@@ -8,9 +7,22 @@ import { initSettingsPage } from './pages/settings-page.js';
 import { startPOSRealtimeListener, waitForAuthReady } from './modules/realtime-order-service.js';
 import { startGoogleAutoBackup } from './modules/google-backup-service.js';
 
+const errorBox = document.createElement('div');
+errorBox.id = 'debugErrors';
+errorBox.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#d00;color:#fff;padding:10px 14px;font-size:13px;z-index:99999;max-height:35vh;overflow:auto;display:none;white-space:pre-wrap';
+document.body.appendChild(errorBox);
+
+function showError(msg){
+  errorBox.style.display = 'block';
+  errorBox.textContent += msg + '\n';
+}
+
 function safeRun(fn, name){
   try { fn(); }
-  catch (err) { console.error(`Init error in ${name}:`, err); }
+  catch (err) {
+    console.error(`Init error in ${name}:`, err);
+    showError(`❌ ${name}: ${err.message}\n${err.stack||''}`);
+  }
 }
 
 function setupNavigation(){
