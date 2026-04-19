@@ -137,19 +137,22 @@ export function initSettingsPage(){
     const session = getGoogleDriveSession();
     document.getElementById('googleDriveAccountBox').innerHTML =
       `登入狀態：${session.isSignedIn?'已登入':'未登入'}${session.email?' / '+session.email:''}`;
+       /* 只顯示最新備份時間 + 最近還原時間與狀態 */
+    const backupTime = cfg.lastBackupAt ? cfg.lastBackupAt.replace('T',' ').slice(0,16) : '無';
+    const restoreTime = cfg.lastRestoreAt ? cfg.lastRestoreAt.replace('T',' ').slice(0,16) : '無';
+    const restoreStatus = cfg.lastRestoreStatus || '尚未還原';
     document.getElementById('googleBackupStatusBox').innerHTML =
-      `最近備份：${cfg.lastBackupAt?cfg.lastBackupAt.replace('T',' ').slice(0,16):'無'}<br>`+
-      `備份狀態：${cfg.lastBackupStatus||'無'}<br>`+
-      `最近還原：${cfg.lastRestoreAt?cfg.lastRestoreAt.replace('T',' ').slice(0,16):'無'}<br>`+
-      `還原狀態：${cfg.lastRestoreStatus||'無'}`;
+      `最近備份：${backupTime}<br>`+
+      `最近還原：${restoreTime}（${restoreStatus}）`;
     const listBox = document.getElementById('googleBackupFileList');
-    if(!session.isSignedIn){ listBox.innerHTML='備份清單：請先登入 Google'; return; }
+    if(!session.isSignedIn){ listBox.innerHTML=''; return; }
     try{
       const files = await listGoogleBackups();
       listBox.innerHTML = files.length
-        ? '最近備份檔：<br>'+files.slice(0,5).map(f=>`${f.name} / ${String(f.modifiedTime||'').replace('T',' ').slice(0,16)}`).join('<br>')
-        : '最近備份檔：無';
-    }catch(err){ listBox.innerHTML='最近備份檔：讀取失敗'; }
+        ? `最新備份檔：${String(files[0].modifiedTime||'').replace('T',' ').slice(0,16)}`
+        : '';
+    }catch(err){ listBox.innerHTML=''; }
+}
   }
   window.refreshGoogleBackupPanel = renderGoogleBackupPanel;
   initializeGoogleDriveApi().then(()=>renderGoogleBackupPanel()).catch(()=>renderGoogleBackupPanel());
