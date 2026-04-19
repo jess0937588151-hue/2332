@@ -337,3 +337,23 @@ export function buildRealtimeOrderForPOS(remote){
     items
   };
 }
+
+export async function syncMenuToFirebase(){
+  await loadFirebaseModules();
+  const user = authInstance.currentUser;
+  if(!user) throw new Error('請先 POS Google 登入');
+  const menuRef = await getRef('menu');
+  await dbApi.set(menuRef, {
+    categories: state.categories || [],
+    modules: state.modules || [],
+    products: (state.products || []).filter(p => p.enabled !== false),
+    updatedAt: new Date().toISOString()
+  });
+}
+
+export async function loadMenuFromFirebase(){
+  await loadFirebaseModules();
+  const menuRef = await getRef('menu');
+  const snapshot = await dbApi.get(menuRef);
+  return snapshot.val() || null;
+}
