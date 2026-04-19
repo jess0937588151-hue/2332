@@ -296,6 +296,8 @@ async function submitOnlineOrder(){
   if(!name) return alert('請輸入姓名');
   if(!phone) return alert('請輸入電話');
 
+  saveCustomerInfo();
+
   const realtimeCfg = getRealtimeConfig();
   if(!realtimeCfg.enabled) return alert('店家尚未啟用即時接單');
 
@@ -337,12 +339,37 @@ async function submitOnlineOrder(){
   }
 }
 
+/* === 顧客資料記憶功能 === */
+function loadCustomerInfo(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('onlineCustomerInfo') || '{}');
+    if(saved.name) document.getElementById('onlineCustomerName').value = saved.name;
+    if(saved.phone) document.getElementById('onlineCustomerPhone').value = saved.phone;
+    if(saved.orderType) document.getElementById('onlineOrderType').value = saved.orderType;
+  }catch(e){}
+}
+
+function saveCustomerInfo(){
+  try{
+    localStorage.setItem('onlineCustomerInfo', JSON.stringify({
+      name: document.getElementById('onlineCustomerName').value.trim(),
+      phone: document.getElementById('onlineCustomerPhone').value.trim(),
+      orderType: document.getElementById('onlineOrderType').value
+    }));
+  }catch(e){}
+}
+
 function init(){
   document.getElementById('onlineStoreName').textContent = getStoreName();
   document.getElementById('onlineStoreMeta').textContent = getStoreMeta();
   renderCategoryTabs();
   renderProducts();
   renderCart();
+  loadCustomerInfo();
+
+  document.getElementById('onlineCustomerName').addEventListener('input', saveCustomerInfo);
+  document.getElementById('onlineCustomerPhone').addEventListener('input', saveCustomerInfo);
+  document.getElementById('onlineOrderType').addEventListener('change', saveCustomerInfo);
 
   document.getElementById('onlineSearchInput').addEventListener('input', renderProducts);
   document.getElementById('onlineItemQtyInput').addEventListener('input', ()=>{
