@@ -1,5 +1,15 @@
 /* 中文備註：線上點餐頁邏輯，顧客送單後會等待 POS 確認，確認後才完成訂購。 */
 /* 功能：雲端菜單自動同步（每30秒）420列、顧客資料記憶、模組選擇、購物車、送單。 */
+/*1️⃣ 狀態物件 onlineState（selectedCategory、cart、currentSelections、configTarget）。 */
+/*2️⃣ 底部提示 toast (showOnlineToast)。*/
+/*3️⃣ 取得店名與副標題 (getStoreName, getStoreMeta)。*/
+/*4️⃣ 建立與展平模組選項的輔助函式 (createConfigState, flattenSelections, sameSelections)。*/
+/*5️⃣ 合併或新增購物車項目 (mergeOrPushCartItem)。*/
+/*6️⃣ 渲染分類標籤、商品列表、商品模組設定視窗、購物車清單以及相關的事件處理 (renderCategoryTabs, renderProducts, renderProductConfig, openProductConfigForNew/Edit, closeProductConfig, renderCart)。*/
+/*7️⃣ 訂單相關 UI（狀態遮罩、日期時間格式化、確認訊息組合 buildConfirmedMessage）。 */
+/*8️⃣ 顧客資料記憶 (loadCustomerInfo, saveCustomerInfo)。 */
+/*9️⃣ 向 Firebase 送出線上訂單 (submitOnlineOrder) 並監聽店家回應 (watchCustomerOrder)。 */
+/*🔟 從 Firebase 重新載入菜單 */
 import { state } from '../core/store.js';
 import { escapeHtml, id, money } from '../core/utils.js';
 import { getRealtimeConfig, pushOnlineOrder, watchCustomerOrder, loadMenuFromFirebase } from '../modules/realtime-order-service.js';
