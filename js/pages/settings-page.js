@@ -3,7 +3,7 @@ import { state, persistAll, seedDefaults } from '../core/store.js';
 import { downloadFile } from '../core/utils.js';
 import { buildCartPreviewOrder, printOrderLabels, printOrderReceipt, getPrintSettings } from '../modules/print-service.js';
 import { backupToGoogle, getGoogleBackupConfig, getGoogleDriveSession, initializeGoogleDriveApi, listGoogleBackups, restoreFromGoogle, signInGoogleDrive, signOutGoogleDrive, startGoogleAutoBackup } from '../modules/google-backup-service.js';
-import { getRealtimeAuthUser, getRealtimeConfig, signInPOSWithGoogle, signOutPOSGoogle, startPOSRealtimeListener, verifyPOSAccess, waitForAuthReady } from '../modules/realtime-order-service.js';
+import { getRealtimeAuthUser, getRealtimeConfig, signInPOSWithGoogle, signOutPOSGoogle, startPOSRealtimeListener, verifyPOSAccess, waitForAuthReady, syncMenuToFirebase } from '../modules/realtime-order-service.js';
 
 export function initSettingsPage(){
   const printConfig = getPrintSettings();
@@ -83,6 +83,16 @@ async function renderPOSGoogleAccountBox(){
     startPOSRealtimeListener(()=> window.refreshAllViews()).catch(err=> console.error(err));
     alert('即時接單設定已儲存');
   };
+
+  document.getElementById('syncMenuBtn')?.addEventListener('click', async ()=>{
+    try{
+      await syncMenuToFirebase();
+      alert('菜單已同步到雲端，線上點餐將顯示最新菜單');
+    }catch(err){
+      alert(err.message || '同步失敗');
+    }
+  });
+
   document.getElementById('showProductImagesToggle').checked = !!state.settings.showProductImages;
 
 
